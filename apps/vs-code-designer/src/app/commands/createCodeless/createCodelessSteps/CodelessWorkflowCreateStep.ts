@@ -32,6 +32,7 @@ import { WorkflowProjectType, MismatchBehavior } from '@microsoft/vscode-extensi
 import type { IFunctionWizardContext, IWorkflowTemplate, IHostJsonV2, StandardApp } from '@microsoft/vscode-extension-logic-apps';
 import * as fse from 'fs-extra';
 import * as path from 'path';
+import { spawn } from 'child_process';
 import type { MessageItem } from 'vscode';
 
 export class CodelessWorkflowCreateStep extends WorkflowCreateStepBase<IFunctionWizardContext> {
@@ -48,8 +49,7 @@ export class CodelessWorkflowCreateStep extends WorkflowCreateStepBase<IFunction
     // Check if the user chose to initialize a static web app
     if (context.initializeStaticWebApp) {
       context.telemetry.properties.initializeStaticWebApp = 'true';
-      // For now, we'll just log a message
-      console.log('Initializing Static Web App...');
+      this.cloneAndInitSWA();
       // TODO: Add the actual logic for initializing a Static Web App here
     } else {
       context.telemetry.properties.initializeStaticWebApp = 'false';
@@ -105,6 +105,22 @@ export class CodelessWorkflowCreateStep extends WorkflowCreateStepBase<IFunction
     }
 
     return workflowJsonFullPath;
+  }
+  private async cloneAndInitSWA() {
+    //TOOD: have options for user to specify SWA name and location for SWA in wizard, add fork if needed, make sure swa cli is installed
+
+    // Define the GitHub repository URL
+    const repoUrl = 'https://github.com/alain-zhiyanov/template-swa-la';
+
+    // Define the new directory name for the cloned repository
+    const newRepoDir = 'my-swa';
+
+    // Clone the repository into the new directory
+    await this.executeCommand(`git clone ${repoUrl} ${newRepoDir}`);
+
+    // Run the SWA CLI command in the new directory
+    // biome-ignore lint/style/noUnusedTemplateLiteral: <explanation>
+    await this.executeCommand(`swa login`, newRepoDir);
   }
 
   private async createSystemArtifacts(context: IFunctionWizardContext): Promise<void> {
@@ -180,5 +196,24 @@ export class CodelessWorkflowCreateStep extends WorkflowCreateStepBase<IFunction
     }
 
     return defaultValue;
+  }
+  private executeCommand(command: string, cwd?: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const [cmd, ...args] = command.split(/\s+/); // Split the command by whitespace to get the command and arguments
+      const options: any = { stdio: 'inherit' }; // Set stdio to 'inherit' to use the parent's stdio streams
+      if (cwd) {
+        options.cwd = cwd;
+      }
+
+      const child = spawn(cmd, args, options);
+
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Command failed with exit code ${code}`));
+        }
+      });
+    });
   }
 }
