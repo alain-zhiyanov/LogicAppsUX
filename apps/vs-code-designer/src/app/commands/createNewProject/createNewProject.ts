@@ -8,6 +8,8 @@ import { addLocalFuncTelemetry, tryGetLocalFuncVersion, tryParseFuncVersion } fr
 import { getGlobalSetting, getWorkspaceSetting } from '../../utils/vsCodeConfig/settings';
 import { OpenBehaviorStep } from './OpenBehaviorStep';
 import { OpenFolderStep } from './OpenFolderStep';
+import { ConnectStaticWebAppBehaviorStep } from './ConnectStaticWebAppBehaviorStep';
+import { ConnectStaticWebAppStep } from './ConnectStaticWebAppStep';
 import { FolderListStep } from './createProjectSteps/FolderListStep';
 import { NewProjectTypeStep } from './createProjectSteps/NewProjectTypeStep';
 import { isString } from '@microsoft/logic-apps-shared';
@@ -69,12 +71,19 @@ export async function createNewProjectInternal(context: IActionContext, options:
     context.telemetry.properties.openBehaviorFromSetting = String(!!wizardContext.openBehavior);
   }
 
+  //this adds the steps to setup wizard
   const wizard: AzureWizard<IFunctionWizardContext> = new AzureWizard(wizardContext, {
     title: localize('createNewProject', 'Create new project'),
-    promptSteps: [new FolderListStep(), new NewProjectTypeStep(options.templateId, options.functionSettings), new OpenBehaviorStep()],
-    executeSteps: [new OpenFolderStep()],
+    promptSteps: [
+      new FolderListStep(),
+      new NewProjectTypeStep(options.templateId, options.functionSettings),
+      new ConnectStaticWebAppBehaviorStep(),
+      new OpenBehaviorStep(),
+    ],
+    executeSteps: [new ConnectStaticWebAppStep(), new OpenFolderStep()],
   });
 
+  //this executes them
   await wizard.prompt();
   await wizard.execute();
 
